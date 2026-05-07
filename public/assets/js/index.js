@@ -1,5 +1,5 @@
-let TIMEOUT_SECONDS = 180;
-let TIMEOUT_STRING = "three minutes";
+let TIMEOUT_SECONDS = 300;
+let TIMEOUT_STRING = "five minutes";
 let secondsRemaining = TIMEOUT_SECONDS;
 
 let gameTimer;
@@ -72,7 +72,6 @@ function showIntro() {
     $("#game-window").hide();
     $("#ending-window").hide();
     $("#intro-window").show();
-    $("#score-submission").show();
 
     let introText =  "This is a game to test your \\(\\LaTeX\\) skills. <br/> <br/>" +
                      " Type as many formulas as you can in " + TIMEOUT_STRING + " (timed game), or play an untimed game (zen mode)!";
@@ -98,10 +97,7 @@ function endGame() {
     let problemsText = numCorrect + ((numCorrect == 1) ? " problem" : " problems");
     let endingText = "You finished " + problemsText + " for a total score of " + currentScore;
     $("#ending-text").text(endingText);
-    
-    // Load initial leaderboard
-    loadLeaderboard('today');
-    
+
     skippedProblems.forEach(idx => {
       let target = problems[problemsOrder[idx % problems.length]];
       let targetId = 'skipTarget' + idx;
@@ -142,7 +138,6 @@ function startGame(useTimer) {
     numCorrect = 0;
     oldVal = "";
     problemsOrder = [...Array(problems.length).keys()];
-    shuffleArray(problemsOrder);
     skippedProblems = [];
 
     $("#intro-window").hide();
@@ -170,6 +165,11 @@ function startGame(useTimer) {
 }
 
 function loadProblem() {
+    if (problemNumber >= problems.length) {
+        endGame();
+        return;
+    }
+
     // clear current work
     $('#out').empty();
     $('#user-input').val('');
@@ -277,73 +277,6 @@ function validateProblem() {
     });
 }
 
-// Helper function to escape HTML special characters
-function escapeHtml(text) {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// Leaderboard functions
-async function submitScore(name, score) {
-    try {
-        await db.collection('leaderboard').add({
-            name: name.trim(),
-            score: score,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        loadLeaderboard('today'); // Refresh leaderboard after submission
-    } catch (error) {
-        console.error("Error submitting score:", error);
-    }
-}
-
-async function loadLeaderboard(timeRange) {
-    const leaderboardList = $("#leaderboard-list");
-    leaderboardList.empty();
-    
-    try {
-        let query = db.collection('leaderboard');
-        
-        // Add time constraints based on selected range
-        const now = new Date();
-        if (timeRange === 'today') {
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            query = query.where('timestamp', '>=', startOfDay);
-        } else if (timeRange === 'month') {
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            query = query.where('timestamp', '>=', startOfMonth);
-        }
-        
-        const snapshot = await query.orderBy('score', 'desc').limit(10).get();
-        
-        if (snapshot.empty) {
-            leaderboardList.append('<p>No scores yet!</p>');
-            return;
-        }
-        
-        let rank = 1;
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            const scoreEntry = `
-                <div class="leaderboard-entry" style="margin: 5px 0;">
-                    <span class="rank">#${rank}</span>
-                    <span class="name">${escapeHtml(data.name)}</span>
-                    <span class="score">${data.score} points</span>
-                </div>
-            `;
-            leaderboardList.append(scoreEntry);
-            rank++;
-        });
-    } catch (error) {
-        console.error("Error loading leaderboard:", error);
-        leaderboardList.append('<p>Error loading leaderboard</p>');
-    }
-}
-
 // Start by showing the intro.
 $(document).ready(function() {
     // Handlers
@@ -391,32 +324,6 @@ $(document).ready(function() {
       }
     });
 
-    // Leaderboard handlers
-    $("#submit-score").click(function() {
-        const playerName = $("#player-name").val().trim();
-        if (playerName.length === 0) {
-            alert("Please enter your name");
-            return;
-        }
-        if (playerName.length > 30) {
-            alert("Name must be 30 characters or less");
-            return;
-        }
-        
-        submitScore(playerName, currentScore);
-        $("#score-submission").hide();
-    });
-    
-    $("#today-scores, #month-scores, #all-time-scores").click(function() {
-        const timeRange = $(this).attr('id').replace('-scores', '');
-        
-        // Update active button
-        $(".leaderboard-controls .latex-button").removeClass('active');
-        $(this).addClass('active');
-        
-        loadLeaderboard(timeRange);
-    });
-    
     $("#play-again-button").click(function() {
         showIntro();
     });
