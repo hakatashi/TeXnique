@@ -1,5 +1,15 @@
 {
   "projects": {
-    "default": "texnique-b1956"
-  }
+    "default": "tsg-decathlon"
+  },
+  "targets": {
+    "tsg-decathlon": {
+      "hosting": {
+        "texnique-test": [
+          "tsg-decathlon-texnique-test"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
