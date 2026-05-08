@@ -298,6 +298,8 @@ $(document).ready(function() {
 
     $("#skip-button").click(function() {
         skippedProblems.push(problemNumber - 1);
+        currentScore = Math.max(0, currentScore - 1);
+        $("#score").text(currentScore);
         loadProblem();
     });
 
